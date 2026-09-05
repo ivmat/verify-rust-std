@@ -2948,26 +2948,45 @@ where
 #[rustc_intrinsic]
 pub const fn ptr_metadata<P: ptr::Pointee<Metadata = M> + PointeeSized, M>(ptr: *const P) -> M;
 
-/// Return whether the initialization state is preserved.
+/// Check one destination byte against a source byte captured before an overlapping [`copy`].
 ///
-/// For untyped copy (`copy` and `copy_nonoverlapping`), copying an uninitialized byte (such as a
-/// padding byte) produces an uninitialized byte. Copying an initialized byte produces an
-/// initialized byte.
+/// The caller chooses `elem` and `byte` and reads `src_byte_before` in a Kani `old(...)` history
+/// expression. That observation time matters because `copy` permits overlap: the call may overwrite
+/// the live source before its postcondition is evaluated.
 ///
-/// Reading an uninitialized byte is UB, so this check compares only initialization state, never
-/// byte values.
-///
-/// This is used for contracts only.
+/// This is a Kani-model byte-value check, not an initialization check. At the repository's Kani
+/// pin without `-Z uninit-checks`, CBMC represents an unwritten byte as an arbitrary but stable
+/// value; the model therefore permits a pre/post value comparison but no Rust-semantic claim about
+/// initialization. This is used for contracts only.
 #[allow(dead_code)]
 #[allow(unused_variables)]
-fn check_copy_untyped<T>(src: *const T, dst: *mut T, count: usize) -> bool {
+fn check_copy_untyped<T>(
+    dst: *mut T,
+    count: usize,
+    src_byte_before: u8,
+    elem: usize,
+    byte: usize,
+) -> bool {
+    #[cfg(kani)]
+    return elem < count
+        && byte < size_of::<T>()
+        && (unsafe { *((dst.add(elem) as *const u8).add(byte)) }) == src_byte_before;
+    #[cfg(not(kani))]
+    return false;
+}
+
+/// Check the Kani memory predicate after a non-overlapping untyped copy.
+///
+/// Unlike [`copy`], [`copy_nonoverlapping`] cannot overwrite its source under its contract, so a
+/// post-state source observation is not stale. At the current Kani pin this predicate does not
+/// distinguish initialized from uninitialized bytes unless `-Z uninit-checks` is enabled; it is
+/// retained as the existing non-overlapping safety/model check, not as a byte-value check.
+#[allow(dead_code)]
+#[allow(unused_variables)]
+fn check_copy_nonoverlapping_untyped<T>(src: *const T, dst: *mut T, count: usize) -> bool {
     #[cfg(kani)]
     if count > 0 {
-        // Inspect a non-deterministically chosen byte in the copy.
         let byte = kani::any_where(|sz: &usize| *sz < size_of::<T>());
-        // Instead of checking every one of the `count` copies, this picks one
-        // non-deterministically and inspects it. Quantifiers add no value here: the solver already
-        // picks an uninitialized element if one exists.
         let elem = kani::any_where(|val: &usize| *val < count);
         let src_data = unsafe { src.add(elem) } as *const u8;
         let dst_data = unsafe { dst.add(elem) } as *const u8;
@@ -2997,7 +3016,7 @@ fn check_copy_untyped<T>(src: *const T, dst: *mut T, count: usize) -> bool {
 //   && ub_checks::can_dereference(core::ptr::slice_from_raw_parts(src as *const crate::mem::MaybeUninit<T>, count))
 //   && ub_checks::can_write(core::ptr::slice_from_raw_parts_mut(dst, count))
 //   && ub_checks::maybe_is_nonoverlapping(src as *const (), dst as *const (), size_of::<T>(), count))]
-// #[ensures(|_| { check_copy_untyped(src, dst, count)})]
+// #[ensures(|_| { check_copy_nonoverlapping_untyped(src, dst, count)})]
 pub const unsafe fn copy_nonoverlapping<T>(src: *const T, dst: *mut T, count: usize);
 
 /// This is an accidentally-stable alias to [`ptr::copy`]; use that instead.
@@ -3014,7 +3033,8 @@ pub const unsafe fn copy_nonoverlapping<T>(src: *const T, dst: *mut T, count: us
 // #[requires(!count.overflowing_mul(size_of::<T>()).1
 //   && ub_checks::can_dereference(core::ptr::slice_from_raw_parts(src as *const crate::mem::MaybeUninit<T>, count))
 //   && ub_checks::can_write(core::ptr::slice_from_raw_parts_mut(dst, count)))]
-// #[ensures(|_| { check_copy_untyped(src, dst, count) })]
+// The pre-state byte-value postcondition lives on `verify::copy_wrapper` below because it uses
+// Kani's `old(...)` history expression.
 // #[cfg_attr(kani, kani::modifies(crate::ptr::slice_from_raw_parts(dst, count)))]
 pub const unsafe fn copy<T>(src: *const T, dst: *mut T, count: usize);
 
@@ -3550,7 +3570,7 @@ mod verify {
         && ub_checks::can_dereference(core::ptr::slice_from_raw_parts(src as *const crate::mem::MaybeUninit<T>, count))
         && ub_checks::can_write(core::ptr::slice_from_raw_parts_mut(dst, count))
         && ub_checks::maybe_is_nonoverlapping(src as *const (), dst as *const (), size_of::<T>(), count))]
-    #[ensures(|_| check_copy_untyped(src, dst, count))]
+    #[ensures(|_| check_copy_nonoverlapping_untyped(src, dst, count))]
     #[kani::modifies(crate::ptr::slice_from_raw_parts(dst, count))]
     #[allow(dead_code)]
     unsafe fn copy_nonoverlapping_wrapper<T>(src: *const T, dst: *mut T, count: usize) {
@@ -3560,7 +3580,21 @@ mod verify {
     #[requires(!count.overflowing_mul(size_of::<T>()).1
         && ub_checks::can_dereference(core::ptr::slice_from_raw_parts(src as *const crate::mem::MaybeUninit<T>, count))
         && ub_checks::can_write(core::ptr::slice_from_raw_parts_mut(dst, count)))]
-    #[ensures(|_| check_copy_untyped(src, dst, count))]
+    #[ensures(|_| {
+        if count > 0 && size_of::<T>() > 0 {
+            // Select the byte and capture its value before the call. A post-state source read is
+            // unsound for an overlap-capable move because the destination may cover that byte.
+            let (src_byte_before, elem, byte) = old({
+                let elem = kani::any_where(|e: &usize| *e < count);
+                let byte = kani::any_where(|b: &usize| *b < size_of::<T>());
+                let src_byte_before = unsafe { *((src.add(elem) as *const u8).add(byte)) };
+                (src_byte_before, elem, byte)
+            });
+            check_copy_untyped(dst, count, src_byte_before, elem, byte)
+        } else {
+            true
+        }
+    })]
     #[kani::modifies(crate::ptr::slice_from_raw_parts(dst, count))]
     #[allow(dead_code)]
     unsafe fn copy_wrapper<T>(src: *const T, dst: *mut T, count: usize) {
@@ -3599,11 +3633,12 @@ mod verify {
                 requires_hold && overlap,
                 "copy: contract-admissible overlapping src/dst (count>0) is reachable",
             );
-            // Witness valid overlap with a source not fully initialized as `char`.
-            // This makes the `check_copy_untyped` initialization oracle non-trivial.
+            // At this Kani pin, this is a validity/alignment/in-bounds partition, not an
+            // initialization observation. The pre-state byte check above is therefore a
+            // model-relative value PROBE; it makes no Rust-semantic initialization claim.
             kani::cover(
                 requires_hold && overlap && !ub_checks::can_dereference(src as *const char),
-                "copy: overlapping call with a non-fully-initialized source is reachable",
+                "copy: overlapping call with a source not valid as a whole char is reachable",
             );
             unsafe { copy_wrapper(src, dst, count) }
         });
@@ -4232,17 +4267,17 @@ mod verify {
     #[requires(offset >= 0 && offset <= 8)]
     #[ensures(|result| *result as usize == (dst as usize).wrapping_add(offset as usize))]
     #[allow(dead_code)]
-    unsafe fn arith_offset_wrapper(dst: *const u8, offset: isize) -> *const u8 {
+    unsafe fn arith_offset_bounded_probe(dst: *const u8, offset: isize) -> *const u8 {
         unsafe { arith_offset(dst, offset) }
     }
 
-    #[kani::proof_for_contract(arith_offset_wrapper)]
-    pub fn check_arith_offset_wrapper_contract() {
+    #[kani::proof_for_contract(arith_offset_bounded_probe)]
+    pub fn check_arith_offset_bounded_probe() {
         let arr: [u8; 8] = kani::any();
         let base = arr.as_ptr();
         // The bound scopes only the pointer-model probe, not safety.
         let offset: isize = kani::any();
-        let _ = unsafe { arith_offset_wrapper(base, offset) };
+        let _ = unsafe { arith_offset_bounded_probe(base, offset) };
     }
 
     // Check unconditional `arith_offset` safety for every `offset: isize`.
@@ -4312,6 +4347,121 @@ mod verify {
         let pi = if pi_from_a { unsafe { base_a.add(i) } } else { unsafe { base_b.add(i) } };
         let pj = if pj_from_a { unsafe { base_a.add(j) } } else { unsafe { base_b.add(j) } };
         let _ = unsafe { ptr_offset_from_unsigned_wrapper(pi, pj) };
+    }
+
+    // The u8 wrappers above cannot exercise their `% size_of::<T>()` conjunct: `% 1 == 0`.
+    // Byte storage plus u32 pointer views permits both divisible and non-divisible byte distances
+    // without dereferencing a possibly unaligned u32 pointer. These bounded monomorphizations are
+    // PROBEs of the candidate contracts, not generic-T CONTRACT evidence.
+    const PTR_OFFSET_U32_BYTES: usize = 16;
+
+    #[requires(
+        (ptr as isize).checked_sub(base as isize).is_some()
+            && (ptr as isize - base as isize) % (size_of::<u32>() as isize) == 0
+            && (ptr as isize == base as isize || ub_checks::same_allocation(ptr, base))
+    )]
+    #[ensures(|result| *result == (ptr as isize - base as isize) / (size_of::<u32>() as isize))]
+    #[allow(dead_code)]
+    unsafe fn ptr_offset_from_u32_wrapper(ptr: *const u32, base: *const u32) -> isize {
+        unsafe { ptr_offset_from(ptr, base) }
+    }
+
+    #[kani::proof_for_contract(ptr_offset_from_u32_wrapper)]
+    pub fn check_ptr_offset_from_u32_wrapper_contract() {
+        let arr_a: [u8; PTR_OFFSET_U32_BYTES] = kani::any();
+        let arr_b: [u8; PTR_OFFSET_U32_BYTES] = kani::any();
+        let base_a = arr_a.as_ptr();
+        let base_b = arr_b.as_ptr();
+        let i: usize = kani::any();
+        let j: usize = kani::any();
+        kani::assume(i < PTR_OFFSET_U32_BYTES && j < PTR_OFFSET_U32_BYTES);
+        let pi_from_a: bool = kani::any();
+        let pj_from_a: bool = kani::any();
+        let ptr = if pi_from_a { unsafe { base_a.add(i) } } else { unsafe { base_b.add(i) } }
+            as *const u32;
+        let base = if pj_from_a { unsafe { base_a.add(j) } } else { unsafe { base_b.add(j) } }
+            as *const u32;
+        let requires_hold = (ptr as isize).checked_sub(base as isize).is_some()
+            && (ptr as isize - base as isize) % (size_of::<u32>() as isize) == 0
+            && (ptr as isize == base as isize || ub_checks::same_allocation(ptr, base));
+        kani::cover(
+            requires_hold && pi_from_a == pj_from_a && i > j && (i - j) % size_of::<u32>() == 0,
+            "ptr_offset_from u32: positive same-allocation element distance reached",
+        );
+        kani::cover(
+            requires_hold && pi_from_a == pj_from_a && j > i && (j - i) % size_of::<u32>() == 0,
+            "ptr_offset_from u32: negative same-allocation element distance reached",
+        );
+        let _ = unsafe { ptr_offset_from_u32_wrapper(ptr, base) };
+    }
+
+    #[requires(
+        (ptr as isize).checked_sub(base as isize).is_some()
+            && (ptr as isize - base as isize) % (size_of::<u32>() as isize) == 0
+            && (ptr as isize == base as isize || ub_checks::same_allocation(ptr, base))
+            && ptr as usize >= base as usize
+    )]
+    #[ensures(|result| *result == (ptr as usize - base as usize) / size_of::<u32>())]
+    #[allow(dead_code)]
+    unsafe fn ptr_offset_from_unsigned_u32_wrapper(ptr: *const u32, base: *const u32) -> usize {
+        unsafe { ptr_offset_from_unsigned(ptr, base) }
+    }
+
+    #[kani::proof_for_contract(ptr_offset_from_unsigned_u32_wrapper)]
+    pub fn check_ptr_offset_from_unsigned_u32_wrapper_contract() {
+        let arr_a: [u8; PTR_OFFSET_U32_BYTES] = kani::any();
+        let arr_b: [u8; PTR_OFFSET_U32_BYTES] = kani::any();
+        let base_a = arr_a.as_ptr();
+        let base_b = arr_b.as_ptr();
+        let i: usize = kani::any();
+        let j: usize = kani::any();
+        kani::assume(i < PTR_OFFSET_U32_BYTES && j < PTR_OFFSET_U32_BYTES);
+        let pi_from_a: bool = kani::any();
+        let pj_from_a: bool = kani::any();
+        let ptr = if pi_from_a { unsafe { base_a.add(i) } } else { unsafe { base_b.add(i) } }
+            as *const u32;
+        let base = if pj_from_a { unsafe { base_a.add(j) } } else { unsafe { base_b.add(j) } }
+            as *const u32;
+        let requires_hold = (ptr as isize).checked_sub(base as isize).is_some()
+            && (ptr as isize - base as isize) % (size_of::<u32>() as isize) == 0
+            && (ptr as isize == base as isize || ub_checks::same_allocation(ptr, base))
+            && ptr as usize >= base as usize;
+        kani::cover(
+            requires_hold && pi_from_a == pj_from_a && i > j && (i - j) % size_of::<u32>() == 0,
+            "ptr_offset_from_unsigned u32: ordered same-allocation element distance reached",
+        );
+        let _ = unsafe { ptr_offset_from_unsigned_u32_wrapper(ptr, base) };
+    }
+
+    // This fixture never calls either unsafe intrinsic on an invalid pair. It shows that the
+    // contract harness's domain reaches every adversarial class filtered by the u32 requires.
+    #[kani::proof]
+    pub fn check_ptr_offset_u32_fixture_partitions() {
+        let arr_a: [u8; PTR_OFFSET_U32_BYTES] = kani::any();
+        let arr_b: [u8; PTR_OFFSET_U32_BYTES] = kani::any();
+        let base_a = arr_a.as_ptr();
+        let base_b = arr_b.as_ptr();
+        let i: usize = kani::any();
+        let j: usize = kani::any();
+        kani::assume(i < PTR_OFFSET_U32_BYTES && j < PTR_OFFSET_U32_BYTES);
+        let pi_from_a: bool = kani::any();
+        let pj_from_a: bool = kani::any();
+        let ptr = if pi_from_a { unsafe { base_a.add(i) } } else { unsafe { base_b.add(i) } }
+            as *const u32;
+        let base = if pj_from_a { unsafe { base_a.add(j) } } else { unsafe { base_b.add(j) } }
+            as *const u32;
+        kani::cover(
+            pi_from_a != pj_from_a && !ub_checks::same_allocation(ptr, base),
+            "ptr_offset u32 fixture: cross-allocation pair rejected by same_allocation reached",
+        );
+        kani::cover(
+            pi_from_a == pj_from_a && i > j && (i - j) % size_of::<u32>() != 0,
+            "ptr_offset u32 fixture: same-allocation non-divisible byte delta reached",
+        );
+        kani::cover(
+            pi_from_a == pj_from_a && j > i && (j - i) % size_of::<u32>() == 0,
+            "ptr_offset unsigned u32 fixture: reversed ordered divisible pair reached",
+        );
     }
 
     // `read_via_copy` requires a projection-free local accepted by `can_dereference`.
@@ -4387,6 +4537,8 @@ mod verify {
         let right: [u8; CAP] = kani::any();
         let bytes: usize = kani::any();
         kani::assume(bytes <= CAP);
+        kani::cover(bytes > 0, "compare_bytes: nonzero harness length reached");
+        kani::cover(bytes == CAP, "compare_bytes: harness CAP boundary reached");
         let _ = unsafe { compare_bytes_wrapper(left.as_ptr(), right.as_ptr(), bytes) };
     }
 
@@ -4536,7 +4688,8 @@ mod verify {
         let _ = unsafe { size_of_val_slice_wrapper::<VtableZst>(ptr, len) };
     }
 
-    // Check `volatile_load` and `volatile_store` by value-preserving round trips.
+    // Check `volatile_load` and `volatile_store` by value-preserving round trips. These are
+    // Rust-allocation PROBEs, not complete documented-domain CONTRACTS.
     // Residual: `can_dereference` and `can_write` cover only Rust-backed allocations. Kani's
     // pointer model cannot represent the documented external-memory MMIO case.
     #[requires(ub_checks::can_dereference(src))]
@@ -4633,18 +4786,22 @@ mod verify {
         let _ = unsafe { vtable_align_wrapper::<u64>(vtable_ptr) };
     }
 
-    // General `vtable_size` and `vtable_align` contracts.
-    // Taking `*const T` and unsizing inside the wrapper binds the vtable to `T`.
-    // Kani emits its `codegen_vtable`, so callers cannot substitute another type's vtable.
-    // The wrapper establishes the documented vtable precondition and needs no `#[requires]`.
+    // Candidate `vtable_size` and `vtable_align` contracts. Criterion-3 correspondence is:
+    // `*const T` -> unsize coercion to `*const dyn Debug` -> `DynMetadata` -> raw vtable pointer ->
+    // size/alignment slots -> comparison with `size_of::<T>()`/`align_of::<T>()`.
+    // Taking `*const T` and unsizing inside the wrapper binds the vtable to `T`. Kani emits its
+    // `codegen_vtable`, so callers cannot substitute another type's vtable. The wrapper establishes
+    // the documented vtable precondition and needs no `#[requires]`.
     // Residual: rustc's `layout_of` supplies both the vtable constant and `size_of::<T>()`.
     // The proof still checks vtable selection, `Kani::CommonVTable` slot layout, and rustc's value
     // against CBMC's independent `__CPROVER_OBJECT_SIZE` value.
     // It cannot detect `layout_of` disagreeing with the final LLVM vtable.
-    // Residual: the wrappers use only `core::fmt::Debug`. Rustc fixes size, align, and drop as the
-    // first three slots for every trait, but this does not prove all traits.
+    // Residual: the finite harness set monomorphizes only seven layouts, and the wrappers use only
+    // `core::fmt::Debug`. Rustc fixes size, align, and drop as the first three slots for every trait,
+    // but these model-relative proofs do not prove all types/traits or final LLVM vtable emission.
     // Keep the raw `*const ()` wrappers above as monomorphic probes of the intrinsic's exact form.
-    // Only these typed contracts count as general contracts.
+    // Only the typed wrappers are candidate contract surfaces; each finite harness remains a PROBE
+    // until a separate genericity/model-correspondence argument supports promotion.
     #[ensures(|result| *result == core::mem::size_of::<T>())]
     #[allow(dead_code)]
     unsafe fn vtable_size_coerced_wrapper<T: core::fmt::Debug>(ptr: *const T) -> usize {
@@ -4965,26 +5122,29 @@ mod verify {
         assert_eq!(dst, oracle);
     }
 
-    // Kani 0.65.0 and CBMC 6.7.1 failed symbolic-offset `memmove` but accepted a fixed shift.
-    // Kani d4df833 verifies the general overlap contract in `check_copy`.
-    // Keep this fixed-shift proof as a small cross-check.
+    // Tool-limit R11 affects symbolic-count copy-family calls with multi-byte T. Keep this
+    // concrete-count u32 PROBE as a tractable overlap discriminator, not a generic contract claim.
     #[kani::proof]
     pub fn check_copy_overlapping_shift_no_ub() {
         const N: usize = 4;
-        const SHIFT: usize = 3; // fixed representative shift (1 <= SHIFT < N); see limitation note above
+        // Source [0, COUNT) and destination [SHIFT, SHIFT + COUNT) genuinely overlap.
+        const SHIFT: usize = 1;
+        const COUNT: usize = N - SHIFT;
+        const RANGES_OVERLAP: bool = SHIFT < COUNT;
+        assert!(RANGES_OVERLAP);
         let mut buf: [u32; N] = kani::any();
         let original = buf;
         // Test a self-overlapping right shift.
         let src_ptr = buf.as_ptr();
         let dst_ptr = unsafe { buf.as_mut_ptr().add(SHIFT) };
-        unsafe { copy(src_ptr, dst_ptr, N - SHIFT) };
+        unsafe { copy(src_ptr, dst_ptr, COUNT) };
         // A symbolic index can select any failing element.
         let i: usize = kani::any();
-        kani::assume(i < N - SHIFT);
+        kani::assume(i < COUNT);
         assert_eq!(buf[i + SHIFT], original[i]);
         kani::cover(
-            true,
-            "copy: self-overlapping right shift completed with the expected post-state",
+            RANGES_OVERLAP,
+            "copy: source and destination ranges genuinely overlap",
         );
     }
 
