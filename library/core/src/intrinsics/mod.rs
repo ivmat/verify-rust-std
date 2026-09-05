@@ -4377,8 +4377,8 @@ mod verify {
 
     // The u8 wrappers above cannot exercise their `% size_of::<T>()` conjunct: `% 1 == 0`.
     // Byte storage plus u32 pointer views permits both divisible and non-divisible byte distances
-    // without dereferencing a possibly unaligned u32 pointer. These bounded monomorphizations are
-    // PROBEs of the candidate contracts, not generic-T CONTRACT evidence.
+    // without dereferencing a possibly unaligned u32 pointer. These bounded monomorphizations
+    // probe the contracts above; they are not generic-T evidence.
     const PTR_OFFSET_U32_BYTES: usize = 16;
 
     #[requires(
@@ -4813,7 +4813,7 @@ mod verify {
         let _ = unsafe { vtable_align_wrapper::<u64>(vtable_ptr) };
     }
 
-    // Candidate `vtable_size` and `vtable_align` contracts. Criterion-3 correspondence is:
+    // The `vtable_size` and `vtable_align` contracts. Criterion-3 correspondence is:
     // `*const T` -> unsize coercion to `*const dyn Debug` -> `DynMetadata` -> raw vtable pointer ->
     // size/alignment slots -> comparison with `size_of::<T>()`/`align_of::<T>()`.
     // Taking `*const T` and unsizing inside the wrapper binds the vtable to `T`. Kani emits its
@@ -4827,7 +4827,7 @@ mod verify {
     // `core::fmt::Debug`. Rustc fixes size, align, and drop as the first three slots for every trait,
     // but these model-relative proofs do not prove all types/traits or final LLVM vtable emission.
     // Keep the raw `*const ()` wrappers above as monomorphic probes of the intrinsic's exact form.
-    // Only the typed wrappers are candidate contract surfaces; each finite harness remains a PROBE
+    // Only the typed wrappers are offered as contract surfaces; each finite harness remains a probe
     // until a separate genericity/model-correspondence argument supports promotion.
     #[ensures(|result| *result == core::mem::size_of::<T>())]
     #[allow(dead_code)]
@@ -5149,8 +5149,8 @@ mod verify {
         assert_eq!(dst, oracle);
     }
 
-    // Tool-limit R11 affects symbolic-count copy-family calls with multi-byte T. Keep this
-    // concrete-count u32 PROBE as a tractable overlap discriminator, not a generic contract claim.
+    // A symbolic count combined with a multi-byte T is intractable here. Keep this concrete-count
+    // u32 probe as a tractable overlap discriminator, not a generic contract claim.
     #[kani::proof]
     pub fn check_copy_overlapping_shift_no_ub() {
         const N: usize = 4;
