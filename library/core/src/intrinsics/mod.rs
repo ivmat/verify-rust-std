@@ -3649,6 +3649,27 @@ mod verify {
         });
     }
 
+    // CONTRACT-CHECKING positive witness for the temporal `old(...)` relation above. Fixed,
+    // initialized, nonuniform source contents make the right-overlap change a still-live source
+    // element, so this fixture detects a post-state source observation masquerading as pre-state.
+    #[kani::proof_for_contract(copy_wrapper)]
+    pub fn check_copy_wrapper_overlapping_nonuniform_contract() {
+        const N: usize = 4;
+        const SHIFT: usize = 1;
+        const COUNT: usize = N - SHIFT;
+        const RANGES_OVERLAP: bool = SHIFT < COUNT;
+        const INITIAL: [u32; N] = [0x1020_3040, 0x5162_7384, 0x95a6_b7c8, 0xd9ea_fb0c];
+        let mut buf = INITIAL;
+        let original = buf;
+        let src = buf.as_ptr();
+        let dst = unsafe { buf.as_mut_ptr().add(SHIFT) };
+        unsafe { copy_wrapper(src, dst, COUNT) };
+        kani::cover(
+            RANGES_OVERLAP && buf[SHIFT] == original[0] && buf[SHIFT] != original[SHIFT],
+            "copy wrapper: nontrivial overlap returns after changing a live source element",
+        );
+    }
+
     #[kani::proof_for_contract(copy_nonoverlapping_wrapper)]
     fn check_copy_nonoverlapping() {
         // `ArbitraryPointer` calls `copy_nonoverlapping`, which this contract check forbids.
@@ -4439,7 +4460,8 @@ mod verify {
     }
 
     // This fixture never calls either unsafe intrinsic on an invalid pair. It shows that the
-    // contract harness's domain reaches every adversarial class filtered by the u32 requires.
+    // contract harness's domain reaches the three named adversarial classes filtered by the u32
+    // requires.
     #[kani::proof]
     pub fn check_ptr_offset_u32_fixture_partitions() {
         let arr_a: [u8; PTR_OFFSET_U32_BYTES] = kani::any();
