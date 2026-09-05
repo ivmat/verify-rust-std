@@ -2957,7 +2957,7 @@ pub const fn ptr_metadata<P: ptr::Pointee<Metadata = M> + PointeeSized, M>(ptr: 
 /// This is a Kani-model byte-value check, not an initialization check. At the repository's Kani
 /// pin without `-Z uninit-checks`, CBMC represents an unwritten byte as an arbitrary but stable
 /// value; the model therefore permits a pre/post value comparison but no Rust-semantic claim about
-/// initialization. This is used for contracts only.
+/// initialization. This helper is referenced only from contract `ensures` clauses.
 #[allow(dead_code)]
 #[allow(unused_variables)]
 fn check_copy_untyped<T>(
@@ -3581,15 +3581,19 @@ mod verify {
         && ub_checks::can_dereference(core::ptr::slice_from_raw_parts(src as *const crate::mem::MaybeUninit<T>, count))
         && ub_checks::can_write(core::ptr::slice_from_raw_parts_mut(dst, count)))]
     #[ensures(|_| {
-        if count > 0 && size_of::<T>() > 0 {
-            // Select the byte and capture its value before the call. A post-state source read is
-            // unsound for an overlap-capable move because the destination may cover that byte.
-            let (src_byte_before, elem, byte) = old({
+        let (src_byte_before, elem, byte) = old({
+            if count > 0 && size_of::<T>() > 0 {
+                // Select the byte and capture its value before the call. A post-state source read is
+                // unsound for an overlap-capable move because the destination may cover that byte.
                 let elem = kani::any_where(|e: &usize| *e < count);
                 let byte = kani::any_where(|b: &usize| *b < size_of::<T>());
                 let src_byte_before = unsafe { *((src.add(elem) as *const u8).add(byte)) };
                 (src_byte_before, elem, byte)
-            });
+            } else {
+                (0u8, 0usize, 0usize)
+            }
+        });
+        if count > 0 && size_of::<T>() > 0 {
             check_copy_untyped(dst, count, src_byte_before, elem, byte)
         } else {
             true
@@ -3640,7 +3644,8 @@ mod verify {
                 requires_hold && overlap && !ub_checks::can_dereference(src as *const char),
                 "copy: overlapping call with a source not valid as a whole char is reachable",
             );
-            unsafe { copy_wrapper(src, dst, count) }
+            unsafe { copy_wrapper(src, dst, count) };
+            kani::cover(count == 0, "copy: zero-count contract call returns");
         });
     }
 
@@ -5179,14 +5184,14 @@ mod verify {
         assert_eq!(dst, oracle);
     }
 
-    // Check `volatile_copy_memory` with a self-overlapping shift.
+    // Check `volatile_copy_memory` with fixed disjoint source and destination regions.
     // Kani reports this intrinsic as unsupported.
     #[cfg(not(kani))]
     #[kani::proof]
     pub fn check_volatile_copy_memory_no_ub() {
         const N: usize = 4;
         // Use a fixed shift and a symbolic checked index, as in the `copy` cross-check.
-        const SHIFT: usize = 3; // fixed representative shift (1 <= SHIFT < N)
+        const SHIFT: usize = 3; // N - SHIFT == 1, so the one-element regions are disjoint.
         let mut buf: [u32; N] = kani::any();
         let original = buf;
         let src_ptr = buf.as_ptr();
@@ -5197,7 +5202,7 @@ mod verify {
         assert_eq!(buf[i + SHIFT], original[i]);
         kani::cover(
             true,
-            "volatile_copy_memory: self-overlapping shift completed with the expected post-state",
+            "volatile_copy_memory: disjoint shifted copy completed with the expected post-state",
         );
     }
 
