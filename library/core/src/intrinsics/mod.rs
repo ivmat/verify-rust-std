@@ -5169,10 +5169,7 @@ mod verify {
         let i: usize = kani::any();
         kani::assume(i < COUNT);
         assert_eq!(buf[i + SHIFT], original[i]);
-        kani::cover(
-            RANGES_OVERLAP,
-            "copy: source and destination ranges genuinely overlap",
-        );
+        kani::cover(RANGES_OVERLAP, "copy: source and destination ranges genuinely overlap");
     }
 
     // This plain `volatile_set_memory` proof avoids the zero-byte contract case in kani#90.
