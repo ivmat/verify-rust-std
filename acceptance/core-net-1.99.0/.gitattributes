@@ -1,0 +1,2 @@
+# Keep every byte as published (the IANA CSV snapshots use CRLF; integrity hashes depend on exact bytes).
+* -text

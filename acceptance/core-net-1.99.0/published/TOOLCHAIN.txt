@@ -1,0 +1,14 @@
+rustc 1.96.1 (31fca3adb 2026-06-26)
+binary: rustc
+commit-hash: 31fca3adb283cc9dfd56b49cdee9a96eb9c96ffd
+commit-date: 2026-06-26
+host: aarch64-apple-darwin
+release: 1.96.1
+LLVM version: 22.1.2
+cargo 1.96.1 (356927216 2026-06-26)
+rust-src: ${RUSTUP_HOME}/toolchains/stable-aarch64-apple-darwin/lib/rustlib/src/rust/library/core/src/net
+a660ca3302111df1760bdb73cc18a1a130373ba4010d2685e7e407f53f2d562d  display_buffer.rs
+e41b5cbaeeeb7892161d25dcd07cf2deb8a591d55c14ae5f4221db06c4a4cd1f  ip_addr.rs
+6283e761c7c1f27f4065b23755b75ef48f6760587b3155e10ac788c70045999c  mod.rs
+49857a0f2d7bdfede62c5a33aef404bdc65ab6cefd7668e9ce52193aab95b600  parser.rs
+d85f7765b0c03e27e2ed1a6c6b1e2279749e6bf4a534ac5cdfba626adad436fc  socket_addr.rs

@@ -1,0 +1,103 @@
+UPSTREAM BASELINE PASS: 58 test-file tests + 80 source doc tests
+PROPOSED BASELINES PASS: copy and real std 1.99.0
+M001 Ipv4Addr::BITS detected
+M002 Ipv4Addr::LOCALHOST detected
+M003 Ipv4Addr::UNSPECIFIED detected
+M004 Ipv4Addr::BROADCAST detected
+M005 Ipv6Addr::BITS detected
+M006 Ipv6Addr::LOCALHOST detected
+M007 Ipv6Addr::UNSPECIFIED detected
+M008 IpAddr::is_unspecified detected
+M009 IpAddr::is_loopback detected
+M010 IpAddr::is_multicast detected
+M011 IpAddr::is_ipv4 detected
+M012 IpAddr::is_ipv6 detected
+M013 IpAddr::to_canonical detected
+M014 Ipv4Addr::new detected
+M015 Ipv4Addr::to_bits detected
+M016 Ipv4Addr::from_bits detected
+M017 Ipv4Addr::octets detected
+M018 Ipv4Addr::from_octets detected
+M019 Ipv4Addr::is_unspecified detected
+M020 Ipv4Addr::is_loopback detected
+M021 Ipv4Addr::is_private detected
+M022 Ipv4Addr::is_link_local detected
+M023 Ipv4Addr::is_multicast detected
+M024 Ipv4Addr::is_broadcast detected
+M025 Ipv4Addr::is_documentation detected
+M026 Ipv4Addr::to_ipv6_compatible detected
+M027 Ipv4Addr::to_ipv6_mapped detected
+M028 Ipv6Addr::new detected
+M029 Ipv6Addr::to_bits detected
+M030 Ipv6Addr::from_bits detected
+M031 Ipv6Addr::segments detected
+M032 Ipv6Addr::from_segments detected
+M033 Ipv6Addr::is_unspecified detected
+M034 Ipv6Addr::is_loopback detected
+M035 Ipv6Addr::is_unique_local detected
+M036 Ipv6Addr::is_unicast_link_local detected
+M037 Ipv6Addr::is_multicast detected
+M038 Ipv6Addr::to_ipv4_mapped detected
+M039 Ipv6Addr::to_ipv4 detected
+M040 Ipv6Addr::to_canonical detected
+M041 Ipv6Addr::octets detected
+M042 Ipv6Addr::from_octets detected
+M043 SocketAddr::new detected
+M044 SocketAddr::ip detected
+M045 SocketAddr::port detected
+M046 SocketAddr::set_ip detected
+M047 SocketAddr::set_port detected
+M048 SocketAddr::is_ipv4 detected
+M049 SocketAddr::is_ipv6 detected
+M050 SocketAddrV4::new detected
+M051 SocketAddrV4::ip detected
+M052 SocketAddrV4::port detected
+M053 SocketAddrV4::set_ip detected
+M054 SocketAddrV4::set_port detected
+M055 SocketAddrV6::new detected
+M056 SocketAddrV6::ip detected
+M057 SocketAddrV6::port detected
+M058 SocketAddrV6::set_ip detected
+M059 SocketAddrV6::set_port detected
+M060 SocketAddrV6::flowinfo detected
+M061 SocketAddrV6::scope_id detected
+M062 SocketAddrV6::set_flowinfo detected
+M063 SocketAddrV6::set_scope_id detected
+M064 RFC5952-4.1 detected
+M065 RFC5952-4.2.1 detected
+M066 RFC5952-4.2.2 detected
+M067 RFC5952-4.2.3 detected
+M068 RFC5952-4.3 detected
+M069 RFC5952-5 detected
+M070 RFC3986-3.2.2-ipv4 detected
+M071 RFC4291-2.2-1 detected
+M072 port-leading-zero detected
+M073 scope-max MISSING
+M074 error-display MISSING
+M075 socket-set-ip-preserve-metadata MISSING
+M076 ipv6-multicast-all-flags MISSING
+M077 fmt::Display for Ipv4Addr detected
+M078 fmt::Debug for Ipv4Addr MISSING
+M079 FromStr for Ipv4Addr MISSING
+M080 fmt::Display for Ipv6Addr detected
+M081 fmt::Debug for Ipv6Addr detected
+M082 FromStr for Ipv6Addr MISSING
+M083 fmt::Display for IpAddr detected
+M084 fmt::Debug for IpAddr MISSING
+M085 FromStr for IpAddr MISSING
+M086 fmt::Display for SocketAddrV4 detected
+M087 fmt::Debug for SocketAddrV4 MISSING
+M088 FromStr for SocketAddrV4 MISSING
+M089 fmt::Display for SocketAddrV6 detected
+M090 fmt::Debug for SocketAddrV6 MISSING
+M091 FromStr for SocketAddrV6 MISSING
+M092 fmt::Display for SocketAddr MISSING
+M093 fmt::Debug for SocketAddr MISSING
+M094 FromStr for SocketAddr MISSING
+M095 RFC5952-5-translated MISSING
+M096 compatible-display detected
+M097 RFC4291-2.2-2 MISSING
+M098 RFC4291-2.2-3 detected
+M099 RFC5952-4-accept MISSING
+M100 STD1990-display-padding detected
+MUTANTS PASS: restored source; each proposed assertion observed runtime red
