@@ -1,0 +1,6 @@
+Building bootstrap
+    Finished `dev` profile [unoptimized] target(s) in 0.07s
+fmt: checked modified file library/coretests/tests/net/ip_addr.rs
+fmt: checked modified file library/coretests/tests/net/parser.rs
+fmt: checked modified file library/coretests/tests/net/socket_addr.rs
+Build completed successfully in 0:00:03

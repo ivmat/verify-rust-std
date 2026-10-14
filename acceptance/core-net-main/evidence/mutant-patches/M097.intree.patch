@@ -1,0 +1,11 @@
+--- a/library/core/src/net/parser.rs
++++ b/library/core/src/net/parser.rs
+@@ -223,7 +223,7 @@
+             // Read the back part of the address. The :: must contain at least one
+             // set of zeroes, so our max length is 7.
+             let mut tail = [0; 7];
+-            let limit = 8 - (head_size + 1);
++            let limit = 8 - (head_size + 2);
+             let (tail_size, _) = read_groups(p, &mut tail[..limit]);
+ 
+             // Concat the head and tail of the IP address

@@ -1,0 +1,8 @@
+Building bootstrap
+    Finished `dev` profile [unoptimized] target(s) in 0.03s
+Building stage1 tidy (stage0 -> stage1, aarch64-apple-darwin)
+error: failed to download `camino v1.2.1`
+
+Caused by:
+  attempting to make an HTTP request, but --offline was specified
+Build completed unsuccessfully in 0:00:02

@@ -1,0 +1,11 @@
+--- a/library/core/src/net/parser.rs
++++ b/library/core/src/net/parser.rs
+@@ -407,7 +407,7 @@
+ impl FromStr for SocketAddrV6 {
+     type Err = AddrParseError;
+     fn from_str(s: &str) -> Result<SocketAddrV6, AddrParseError> {
+-        Self::parse_ascii(s.as_bytes())
++        Self::parse_ascii(s.trim().as_bytes())
+     }
+ }
+ 

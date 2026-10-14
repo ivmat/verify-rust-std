@@ -1,0 +1,16 @@
+--- a/library/core/src/net/socket_addr.rs
++++ b/library/core/src/net/socket_addr.rs
+@@ -574,12 +574,7 @@
+ }
+ 
+ impl fmt::Display for SocketAddr {
+-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+-        match *self {
+-            SocketAddr::V4(ref a) => a.fmt(f),
+-            SocketAddr::V6(ref a) => a.fmt(f),
+-        }
+-    }
++    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { f.write_str("changed") }
+ }
+ 
+ impl fmt::Debug for SocketAddr {

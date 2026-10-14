@@ -1,0 +1,4 @@
+Building bootstrap
+    Finished `dev` profile [unoptimized] target(s) in 0.10s
+fmt error: path arguments are no longer accepted; use `--all` to format everything
+Build completed unsuccessfully in 0:00:01

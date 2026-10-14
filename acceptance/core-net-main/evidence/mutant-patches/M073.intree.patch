@@ -1,0 +1,11 @@
+--- a/library/core/src/net/parser.rs
++++ b/library/core/src/net/parser.rs
+@@ -250,7 +250,7 @@
+     fn read_scope_id(&mut self) -> Option<u32> {
+         self.read_atomically(|p| {
+             p.read_given_char('%')?;
+-            p.read_decimal()
++            p.read_decimal::<u32>().map(|n| n.min(u32::MAX - 1))
+         })
+     }
+ 

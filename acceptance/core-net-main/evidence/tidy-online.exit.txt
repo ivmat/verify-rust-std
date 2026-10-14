@@ -1,0 +1,5 @@
+command: ./x test tidy
+checkout: rust-lang/rust main @ f6c1107f8be13e48465e12c0fd26e6a39fe18e4f with both package patches applied
+network: yes
+exit code: 0
+date: 2026-10-14

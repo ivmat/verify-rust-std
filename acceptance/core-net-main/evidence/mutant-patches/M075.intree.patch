@@ -1,0 +1,11 @@
+--- a/library/core/src/net/socket_addr.rs
++++ b/library/core/src/net/socket_addr.rs
+@@ -205,7 +205,7 @@
+         // `match (*self, new_ip)` would have us mutate a copy of self only to throw it away.
+         match (self, new_ip) {
+             (&mut SocketAddr::V4(ref mut a), IpAddr::V4(new_ip)) => a.set_ip(new_ip),
+-            (&mut SocketAddr::V6(ref mut a), IpAddr::V6(new_ip)) => a.set_ip(new_ip),
++            (&mut SocketAddr::V6(ref mut a), IpAddr::V6(new_ip)) => *a = SocketAddrV6::new(new_ip, a.port(), 0, 0),
+             (self_, new_ip) => *self_ = Self::new(new_ip, self_.port()),
+         }
+     }

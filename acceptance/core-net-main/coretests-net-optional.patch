@@ -1,0 +1,68 @@
+diff --git a/library/coretests/tests/net/ip_addr.rs b/library/coretests/tests/net/ip_addr.rs
+--- a/library/coretests/tests/net/ip_addr.rs
++++ b/library/coretests/tests/net/ip_addr.rs
+@@ -1082,3 +1087,19 @@ fn structural_match() {
+         _ => unreachable!(),
+     }
+ }
++
++// Optional representation regression tests; expectations may change across Rust versions.
++#[test]
++fn ipv4_debug_snapshot() {
++    assert_eq!(format!("{:?}", Ipv4Addr::new(18, 52, 86, 120)), "18.52.86.120");
++}
++
++#[test]
++fn ip_addr_debug_snapshot() {
++    assert_eq!(format!("{:?}", IpAddr::V4(Ipv4Addr::new(18, 52, 86, 120))), "18.52.86.120");
++}
++
++#[test]
++fn translated_ipv6_display_hexadecimal_snapshot() {
++    assert_eq!("::ffff:0:192.0.2.1".parse::<Ipv6Addr>().unwrap().to_string(), "::ffff:0:c000:201");
++}
+diff --git a/library/coretests/tests/net/parser.rs b/library/coretests/tests/net/parser.rs
+--- a/library/coretests/tests/net/parser.rs
++++ b/library/coretests/tests/net/parser.rs
+@@ -148,3 +193,9 @@ fn ipv6_corner_failures() {
+     // Need brackets for a port
+     assert!(SocketAddrV6::from_str("1:1:1:1:1:1:1:1:8080").is_err());
+ }
++
++// Optional representation regression tests; expectations may change across Rust versions.
++#[test]
++fn addr_parse_error_display_snapshot() {
++    assert_eq!("x".parse::<IpAddr>().unwrap_err().to_string(), "invalid IP address syntax");
++}
+diff --git a/library/coretests/tests/net/socket_addr.rs b/library/coretests/tests/net/socket_addr.rs
+--- a/library/coretests/tests/net/socket_addr.rs
++++ b/library/coretests/tests/net/socket_addr.rs
+@@ -242,3 +265,28 @@ fn compare() {
+     assert_eq!(v6_1, "[2001:db8:f00::1002]:23456".parse().unwrap());
+     assert_eq!(SocketAddr::V4(v4_1), "224.120.45.1:23456".parse().unwrap());
+ }
++
++// Optional representation regression tests; expectations may change across Rust versions.
++#[test]
++fn socket_v4_debug_snapshot() {
++    assert_eq!(
++        format!("{:?}", SocketAddrV4::new(Ipv4Addr::new(18, 52, 86, 120), 1234)),
++        "18.52.86.120:1234"
++    );
++}
++
++#[test]
++fn socket_v6_debug_snapshot() {
++    assert_eq!(
++        format!("{:?}", SocketAddrV6::new(Ipv6Addr::new(1, 2, 3, 4, 5, 6, 7, 8), 1234, 42, 7)),
++        "[1:2:3:4:5:6:7:8%7]:1234"
++    );
++}
++
++#[test]
++fn socket_addr_debug_snapshot() {
++    assert_eq!(
++        format!("{:?}", SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(18, 52, 86, 120), 1234))),
++        "18.52.86.120:1234"
++    );
++}

@@ -1,0 +1,193 @@
+Building bootstrap
+    Finished `dev` profile [unoptimized] target(s) in 0.03s
+Diff in <rust-checkout>/library/unwind/src/types.rs:19:
+ pub type _Unwind_Exception_Class = u64;
+ pub type _Unwind_Word = *const u8;
+ 
+-pub const unwinder_private_data_size: usize =
+-    cfg_select! {
+-        target_arch = "x86" => 5,
+-        all(target_arch = "x86_64", not(any(target_os = "windows", target_os = "cygwin"))) => 2,
+-        all(target_arch = "x86_64", any(target_os = "windows", target_os = "cygwin")) => 6,
+-        all(target_arch = "arm", not(target_vendor = "apple")) => 20,
+-        all(target_arch = "arm", target_vendor = "apple") => 5,
+-        all(target_arch = "aarch64", target_pointer_width = "64", not(target_os = "windows")) => 2,
+-        all(target_arch = "aarch64", target_pointer_width = "64", target_os = "windows") => 6,
+-        all(target_arch = "aarch64", target_pointer_width = "32") => 5,
+-        target_arch = "m68k" => 2,
+-        any(target_arch = "mips", target_arch = "mips32r6") => 2,
+-        target_arch = "csky" => 2,
+-        any(target_arch = "mips64", target_arch = "mips64r6") => 2,
+-        any(target_arch = "powerpc", target_arch = "powerpc64") => 2,
+-        target_arch = "s390x" => 2,
+-        any(target_arch = "sparc", target_arch = "sparc64") => 2,
+-        any(target_arch = "riscv64", target_arch = "riscv32") => 2,
+-        target_family = "wasm" => 2,
+-        target_arch = "hexagon" => 5,
+-        any(target_arch = "loongarch32", target_arch = "loongarch64") => 2,
+-    };
++pub const unwinder_private_data_size: usize = cfg_select! {
++    target_arch = "x86" => 5,
++    all(target_arch = "x86_64", not(any(target_os = "windows", target_os = "cygwin"))) => 2,
++    all(target_arch = "x86_64", any(target_os = "windows", target_os = "cygwin")) => 6,
++    all(target_arch = "arm", not(target_vendor = "apple")) => 20,
++    all(target_arch = "arm", target_vendor = "apple") => 5,
++    all(target_arch = "aarch64", target_pointer_width = "64", not(target_os = "windows")) => 2,
++    all(target_arch = "aarch64", target_pointer_width = "64", target_os = "windows") => 6,
++    all(target_arch = "aarch64", target_pointer_width = "32") => 5,
++    target_arch = "m68k" => 2,
++    any(target_arch = "mips", target_arch = "mips32r6") => 2,
++    target_arch = "csky" => 2,
++    any(target_arch = "mips64", target_arch = "mips64r6") => 2,
++    any(target_arch = "powerpc", target_arch = "powerpc64") => 2,
++    target_arch = "s390x" => 2,
++    any(target_arch = "sparc", target_arch = "sparc64") => 2,
++    any(target_arch = "riscv64", target_arch = "riscv32") => 2,
++    target_family = "wasm" => 2,
++    target_arch = "hexagon" => 5,
++    any(target_arch = "loongarch32", target_arch = "loongarch64") => 2,
++};
+ 
+ #[repr(C)]
+ // The Itanium C++ ABI requires this type to have "double-word" alignment,
+Diff in <rust-checkout>/library/proc_macro/src/bridge/arena.rs:42:
+         // arenas that are used for 100s of MiBs. Note also that the chosen sizes match
+         // the usual sizes of pages and huge pages on Linux.
+         const PAGE: usize = 4096;
+-        const HUGE_PAGE: usize =
+-            cfg_select! {
+-                any(target_pointer_width = "64", target_pointer_width = "32") => 2 * 1024 * 1024,
+-                _ => 8192, // just make it compile for -Zbuild-std
+-            };
++        const HUGE_PAGE: usize = cfg_select! {
++            any(target_pointer_width = "64", target_pointer_width = "32") => 2 * 1024 * 1024,
++            _ => 8192, // just make it compile for -Zbuild-std
++        };
+ 
+         let mut chunks = self.chunks.borrow_mut();
+         let mut new_cap;
+Diff in <rust-checkout>/library/std/src/sys/fs/unix/dir.rs:28:
+ use crate::sys::{AsInner, FromInner, IntoInner, cvt, cvt_r};
+ use crate::{fmt, fs, io, mem};
+ 
+-const TRAVERSE_DIRECTORY: i32 =
+-    cfg_select! {
+-        any(target_os = "freebsd", target_os = "aix") => libc::O_EXEC,
+-        any(target_os = "linux", target_os = "android", target_os = "l4re") => libc::O_PATH,
+-        target_os = "illumos" => libc::O_SEARCH,
+-        _ => libc::O_RDONLY,
+-    };
++const TRAVERSE_DIRECTORY: i32 = cfg_select! {
++    any(target_os = "freebsd", target_os = "aix") => libc::O_EXEC,
++    any(target_os = "linux", target_os = "android", target_os = "l4re") => libc::O_PATH,
++    target_os = "illumos" => libc::O_SEARCH,
++    _ => libc::O_RDONLY,
++};
+ 
+ pub struct Dir(pub(super) OwnedFd);
+ 
+Diff in <rust-checkout>/library/coretests/tests/mem/fn_ptr.rs:23:
+     assert!(matches!(const { Type::of::<fn(&u8, &u8)>().kind }, TypeKind::FnPtr));
+     assert!(matches!(const { Type::of::<fn(unsafe fn())>().kind }, TypeKind::FnPtr));
+     assert!(matches!(const { Type::of::<fn(extern "system" fn())>().kind }, TypeKind::FnPtr));
+-    assert!(matches!(
+-        const { Type::of::<fn(#[rustc_splat] (String, u8))>().kind },
+-        TypeKind::FnPtr
+-    ));
++    assert!(matches!(const { Type::of::<fn((String, u8))>().kind }, TypeKind::FnPtr));
+ }
+ 
+ #[test]
+Diff in <rust-checkout>/library/coretests/tests/mem/fn_ptr.rs:90:
+ 
+ #[test]
+ fn test_splat() {
+-    let f = const { TypeId::of::<fn(#[rustc_splat] (String, u8))>().function_ptr() }.unwrap();
++    let f = const { TypeId::of::<fn((String, u8))>().function_ptr() }.unwrap();
+     assert_eq!(f.inputs(), [TUPLE_STRING_U8_TY]);
+     assert_eq!(f.splatted(), Some(0));
+ }
+Diff in <rust-checkout>/library/std/tests/sync/rwlock.rs:905:
+     let mut read_lock_ctr: u32 = 0;
+     let rwlock: RwLock<i32> = RwLock::new(0);
+ 
+-    const MAX_READERS: u32 =
+-        cfg_select! {
+-            miri => 100,
+-            any(
+-                all(target_os = "windows", not(target_vendor = "win7")),
+-                target_os = "linux",
+-                target_os = "android",
+-                target_os = "freebsd",
+-                target_os = "openbsd",
+-                target_os = "dragonfly",
+-                target_os = "fuchsia",
+-                all(target_family = "wasm", target_feature = "atomics"),
+-                target_os = "hermit",
+-                target_os = "motor",
+-            ) => (1 << 30) - 2,
+-            any(
+-                target_family = "unix",
+-                all(target_os = "windows", target_vendor = "win7", target_pointer_width = "64"),
+-                all(target_vendor = "fortanix", target_env = "sgx"),
+-                target_os = "xous",
+-                target_os = "teeos",
+-            ) => u32::MAX,
+-            // Otherwise a form of deadlock is observed.
+-            all(target_os = "windows", target_vendor = "win7", target_pointer_width = "32") => {
+-                (1 << 28) - 1
+-            }
+-            target_os = "solid_asp3" => (1 << 30),
+-            _ => u32::MAX,
+-        };
++    const MAX_READERS: u32 = cfg_select! {
++        miri => 100,
++        any(
++            all(target_os = "windows", not(target_vendor = "win7")),
++            target_os = "linux",
++            target_os = "android",
++            target_os = "freebsd",
++            target_os = "openbsd",
++            target_os = "dragonfly",
++            target_os = "fuchsia",
++            all(target_family = "wasm", target_feature = "atomics"),
++            target_os = "hermit",
++            target_os = "motor",
++        ) => (1 << 30) - 2,
++        any(
++            target_family = "unix",
++            all(target_os = "windows", target_vendor = "win7", target_pointer_width = "64"),
++            all(target_vendor = "fortanix", target_env = "sgx"),
++            target_os = "xous",
++            target_os = "teeos",
++        ) => u32::MAX,
++        // Otherwise a form of deadlock is observed.
++        all(target_os = "windows", target_vendor = "win7", target_pointer_width = "32") => {
++            (1 << 28) - 1
++        }
++        target_os = "solid_asp3" => (1 << 30),
++        _ => u32::MAX,
++    };
+ 
+     while read_lock_ctr < MAX_READERS {
+         let lock = rwlock.read();
+Diff in <rust-checkout>/library/std/src/sys/net/connection/socket/mod.rs:50:
+ //
+ // On Windows, the relevant syscall takes an `i32` (unlike for read/write!),
+ // so we need to clamp to i32::MAX.
+-const MAX_SEND_LEN: usize =
+-    cfg_select! {
+-        any(target_vendor = "apple", target_os = "nto", target_os = "qnx") => c_int::MAX as usize,
+-        target_os = "windows" => i32::MAX as usize,
+-        _ => libc::ssize_t::MAX as usize,
+-    };
++const MAX_SEND_LEN: usize = cfg_select! {
++    any(target_vendor = "apple", target_os = "nto", target_os = "qnx") => c_int::MAX as usize,
++    target_os = "windows" => i32::MAX as usize,
++    _ => libc::ssize_t::MAX as usize,
++};
+ 
+ cfg_select! {
+     any(
+fmt: checked 7360 modified files
+Build completed unsuccessfully in 0:00:03

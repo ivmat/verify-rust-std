@@ -1,0 +1,36 @@
+Building bootstrap
+    Finished `dev` profile [unoptimized] target(s) in 0.16s
+<rust-checkout>/build/aarch64-apple-darwin/ci-llvm/bin/llvm-strip does not exist; skipping copy
+Building stage1 compiler artifacts (stage0 -> stage1, aarch64-apple-darwin)
+    Finished `release` profile [optimized] target(s) in 0.44s
+Creating a sysroot for stage1 compiler (use `rustup toolchain link 'name' build/host/stage1`)
+Building stage1 library artifacts (stage1 -> stage1, aarch64-apple-darwin)
+    Finished `dist` profile [optimized] target(s) in 0.04s
+Building stage1 rustdoc-tool-binary (stage0 -> stage1, aarch64-apple-darwin)
+    Finished `release` profile [optimized] target(s) in 0.14s
+Testing stage1 coretests (aarch64-apple-darwin)
+   Compiling coretests v0.0.0 (<rust-checkout>/library/coretests)
+    Finished `dist` profile [optimized] target(s) in 37.99s
+     Running tests/lib.rs (build/aarch64-apple-darwin/stage1-std/aarch64-apple-darwin/dist/build/coretests/34a8842665ea3cbd/out/coretests-34a8842665ea3cbd)
+
+running 66 tests
+..................................................................
+
+test result: ok. 66 passed; 0 failed; 0 ignored; 0 measured; 2796 filtered out; finished in 1.70ms
+
+     Running benches/lib.rs (build/aarch64-apple-darwin/stage1-std/aarch64-apple-darwin/dist/build/coretests/96c619c47f9ce64c/out/corebenches-96c619c47f9ce64c)
+
+running 0 tests
+
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 38.92µs
+
+   Doc-tests coretests
+
+running 0 tests
+
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.67µs
+
+	finished in 38.971 seconds
+Build completed successfully in 0:00:46
